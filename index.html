@@ -3,104 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apollo Tyres Tracker Pro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <title>My Attendance Tracker</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
-        .shift-a { background-color: #dcfce7 !important; color: #15803d !important; border: 2.5px solid #15803d !important; }
-        .shift-b { background-color: #dbeafe !important; color: #1d4ed8 !important; border: 2.5px solid #1d4ed8 !important; }
-        .shift-c { background-color: #fef9c3 !important; color: #a16207 !important; border: 2.5px solid #a16207 !important; }
-        .shift-off { background-color: #f3f4f6 !important; color: #4b5563 !important; border: 2.5px solid #4b5563 !important; }
-        .shift-leave { background-color: #fee2e2 !important; color: #b91c1c !important; border: 2.5px solid #b91c1c !important; }
-        .shift-holiday { background-color: #f5f3ff !important; color: #6d28d9 !important; border: 2.5px solid #6d28d9 !important; }
-        .calendar-day { aspect-ratio: 1 / 1.2; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; border: 1px solid #d1d5db; cursor: pointer; border-radius: 12px; margin: 2px; position: relative; }
-        .ot-label { position: absolute; top: 2px; right: 4px; color: #ea580c; font-size: 8px; font-weight: 900; }
-        .shift-tag { font-size: 9px; font-weight: 900; margin-top: 2px; text-transform: uppercase; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 50; backdrop-filter: blur(4px); }
-        .modal.active { display: flex; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin-top: 20px; text-align: center; }
+        h2 { color: #1a73e8; margin-bottom: 20px; }
+        #login-section, #app-section { display: none; }
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: 0.3s; width: 100%; margin: 10px 0; font-weight: bold; }
+        .btn-google { background-color: #4285f4; color: white; }
+        .btn-shift { background-color: #e8f0fe; color: #1967d2; border: 1px solid #1967d2; }
+        .btn-shift.active { background-color: #1967d2; color: white; }
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 20px; }
+        .day { padding: 10px 5px; background: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; position: relative; min-height: 40px; }
+        .day-header { font-weight: bold; background: #eee; }
+        .shift-tag { font-size: 10px; display: block; margin-top: 5px; color: #d93025; font-weight: bold; }
+        .controls { margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        input[type="number"] { width: 60px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; }
     </style>
 </head>
-<body class="pb-10">
+<body>
 
-    <header class="bg-white p-4 shadow-sm flex justify-between items-center sticky top-0 z-40">
-        <div class="flex items-center gap-2">
-            <div class="w-9 h-9 bg-rose-600 rounded-lg text-white flex items-center justify-center font-black text-xl shadow-lg">A</div>
-            <div>
-                <h1 class="font-extrabold text-gray-800 leading-none">Apollo Tyres</h1>
-                <p id="userDisplay" class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Attendance Manager</p>
-            </div>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="googleLogin()" id="loginBtn" class="p-2 bg-blue-600 text-white rounded-xl text-xs font-bold px-4">Login</button>
-            <button onclick="openSettings()" class="p-2 bg-gray-100 rounded-xl">⚙️</button>
-        </div>
-    </header>
-
-    <main class="max-w-md mx-auto px-3 mt-4">
-        <div class="flex justify-between items-center mb-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-            <button onclick="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl text-rose-600 font-bold">←</button>
-            <h2 id="monthDisplay" class="font-extrabold text-gray-700"></h2>
-            <button onclick="changeMonth(1)" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl text-rose-600 font-bold">→</button>
-        </div>
-        <div id="syncStatus" class="hidden text-center text-[10px] font-bold text-green-600 mb-2">● Auto-sync Active</div>
-        <div class="bg-white rounded-3xl shadow-sm p-3 mb-6 border border-gray-100">
-            <div id="calendarGrid" class="grid grid-cols-7 text-center"></div>
-        </div>
-
-        <div class="bg-white p-5 rounded-3xl shadow-sm border-l-8 border-rose-500 mb-6">
-            <div class="grid grid-cols-5 gap-2 text-center">
-                <div class="p-2 bg-blue-50 rounded-lg"><p class="text-[8px] font-bold">DUTY</p><p id="statDuty" class="text-lg font-black">0</p></div>
-                <div class="p-2 bg-orange-50 rounded-lg"><p class="text-[8px] font-bold">OT</p><p id="statOt" class="text-lg font-black">0</p></div>
-                <div class="p-2 bg-gray-50 rounded-lg"><p class="text-[8px] font-bold">OFF</p><p id="statOff" class="text-lg font-black">0</p></div>
-                <div class="p-2 bg-purple-50 rounded-lg"><p class="text-[8px] font-bold">HOLI</p><p id="statHoliday" class="text-lg font-black">0</p></div>
-                <div class="p-2 bg-red-50 rounded-lg"><p class="text-[8px] font-bold">LEAVE</p><p id="statLeave" class="text-lg font-black">0</p></div>
-            </div>
-        </div>
-    </main>
-
-    <div id="dayModal" class="modal px-4">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-            <h3 id="selectedDateTitle" class="font-black text-xl mb-4 text-center text-gray-800"></h3>
-            <div class="grid grid-cols-3 gap-2 mb-4">
-                <button onclick="setShift('A', this)" class="shift-btn p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-xs font-bold">A Shift</button>
-                <button onclick="setShift('B', this)" class="shift-btn p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-xs font-bold">B Shift</button>
-                <button onclick="setShift('C', this)" class="shift-btn p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-xs font-bold">C Shift</button>
-                <button onclick="setShift('OFF', this)" class="shift-btn p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-xs font-bold">OFF</button>
-                <button onclick="setShift('LEAVE', this)" class="shift-btn p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-xs font-bold text-red-600">LEAVE</button>
-                <button onclick="setShift('HOLIDAY', this)" class="shift-btn p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-xs font-bold text-purple-600">HOLIDAY</button>
-            </div>
-            <label class="flex items-center gap-2 p-3 bg-orange-50 rounded-xl border border-orange-200 mb-4 cursor-pointer">
-                <input type="checkbox" id="otCheck" class="w-5 h-5 accent-orange-600">
-                <span class="text-sm font-bold text-orange-900">Over Time (OT)</span>
-            </label>
-            <textarea id="dayNote" class="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm mb-4" placeholder="കുറിപ്പുകൾ..."></textarea>
-            <div class="flex gap-2">
-                <button onclick="deleteEntry()" class="w-1/4 py-3 text-gray-400 font-bold">Clear</button>
-                <button onclick="saveAttendance()" class="w-3/4 py-3 bg-rose-600 text-white rounded-xl font-black">Save</button>
-            </div>
-        </div>
+<div class="container">
+    <h2>My Attendance Tracker</h2>
+    
+    <div id="login-section">
+        <p>തുടരാൻ ലോഗിൻ ചെയ്യുക</p>
+        <button class="btn btn-google" onclick="login()">Google വഴി ലോഗിൻ ചെയ്യുക</button>
     </div>
 
-    <div id="settingsModal" class="modal px-4">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-7 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="font-black text-xl mb-6 text-gray-800">⚙️ Settings</h3>
-            
-            <div class="flex flex-col gap-3 mb-6">
-                <button onclick="backupToTelegram()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black">📤 Backup to Telegram</button>
-                
-                <div class="p-4 bg-green-50 rounded-2xl border border-green-200 text-center">
-                    <p class="text-[10px] font-bold text-green-700 mb-2 uppercase">Restore Data</p>
-                    <input type="file" id="restoreFile" class="hidden" accept=".json" onchange="restoreFromFile(event)">
-                    <button onclick="document.getElementById('restoreFile').click()" class="w-full py-3 bg-white border-2 border-green-300 text-green-700 rounded-xl font-black text-xs">📥 Select Backup File</button>
-                </div>
+    <div id="app-section">
+        <p id="user-info"></p>
+        <h3 id="current-month"></h3>
+        
+        <div class="calendar" id="calendar"></div>
 
-                <button onclick="logout()" id="logoutBtn" class="hidden w-full py-3 bg-red-50 text-red-600 rounded-xl font-bold text-sm">Logout</button>
+        <div class="controls">
+            <h4>ഇന്നത്തെ ഡ്യൂട്ടി</h4>
+            <div style="display: flex; gap: 5px;">
+                <button class="btn btn-shift" onclick="markShift('A')">A</button>
+                <button class="btn btn-shift" onclick="markShift('B')">B</button>
+                <button class="btn btn-shift" onclick="markShift('C')">C</button>
+                <button class="btn btn-shift" onclick="markShift('OFF')" style="color: red;">OFF</button>
+            </div>
+            <p>OT Hours: <input type="number" id="ot-input" value="0" min="0"> 
+            <button onclick="saveOT()" style="padding: 5px 10px;">Save</button></p>
+            <button class="btn" style="background: #34a853; color: white;" onclick="backupToTelegram()">Backup to Telegram</button>
+            <button class="btn" style="background: #5f6368; color: white;" onclick="logout()">Logout</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // നിങ്ങളുടെ Firebase കോൺഫിഗറേഷൻ ഇവിടെ മാറ്റി നൽകുക
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    let currentUser = null;
+
+    // ലോഗിൻ മാറ്റം പരിശോധിക്കുന്നു
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            currentUser = user;
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'block';
+            document.getElementById('user-info').innerText = "ഹലോ, " + user.displayName;
+            loadCalendar();
+        } else {
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('app-section').style.display = 'none';
+        }
+    });
+
+    // ലോഗിൻ ഫങ്ക്ഷൻ (APK-ൽ വർക്ക് ചെയ്യാൻ Popup രീതി)
+    function login() {
+        auth.signInWithPopup(provider).then((result) => {
+            console.log("Login Success");
+        }).catch((error) => {
+            alert("Error: " + error.message);
+        });
+    }
+
+    function logout() {
+        auth.signOut();
+    }
+
+    function loadCalendar() {
+        const calDiv = document.getElementById('calendar');
+        calDiv.innerHTML = '';
+        const now = new Date();
+        const month = now.getMonth();
+        const year = now.getFullYear();
+        document.getElementById('current-month').innerText = now.toLocaleString('ml-IN', { month: 'long', year: 'numeric' });
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        // ഡാറ്റാബേസിൽ നിന്ന് എടുക്കുന്നു
+        db.ref('users/' + currentUser.uid + '/attendance/' + year + '/' + (month+1)).on('value', snapshot => {
+            const data = snapshot.val() || {};
+            calDiv.innerHTML = '';
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'day';
+                let shiftInfo = data[i] ? `<span class="shift-tag">${data[i].shift}${data[i].ot > 0 ? ' +'+data[i].ot : ''}</span>` : '';
+                dayDiv.innerHTML = `<strong>${i}</strong>${shiftInfo}`;
+                calDiv.appendChild(dayDiv);
+            }
+        });
+    }
+
+    function markShift(type) {
+        const now = new Date();
+        const day = now.getDate();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const ot = document.getElementById('ot-input').value;
+
+        db.ref('users/' + currentUser.uid + '/attendance/' + year + '/' + month + '/' + day).set({
+            shift: type,
+            ot: ot,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+    }
+
+    function saveOT() {
+        markShift('Current'); // നിലവിലുള്ള ഷിഫ്റ്റിനൊപ്പം OT സേവ് ചെയ്യാൻ
+    }
+
+    function backupToTelegram() {
+        alert("ബാക്കപ്പ് തയ്യാറാകുന്നു... ഡാറ്റ കോപ്പി ചെയ്ത് ടെലഗ്രാമിലേക്ക് അയക്കാം.");
+        // ഇവിടെ കൂടുതൽ ബാക്കപ്പ് ലോജിക് ചേർക്കാം
+    }
+</script>
+
+</body>
+</html>
             </div>
 
             <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100">
