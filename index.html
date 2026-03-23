@@ -15,14 +15,12 @@
         #login-section, #app-section { display: none; }
         .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: 0.3s; width: 100%; margin: 10px 0; font-weight: bold; }
         .btn-google { background-color: #4285f4; color: white; }
-        .btn-shift { background-color: #e8f0fe; color: #1967d2; border: 1px solid #1967d2; }
-        .btn-shift.active { background-color: #1967d2; color: white; }
+        .btn-shift { background-color: #e8f0fe; color: #1967d2; border: 1px solid #1967d2; padding: 10px; flex: 1; }
         .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 20px; }
-        .day { padding: 10px 5px; background: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; position: relative; min-height: 40px; }
-        .day-header { font-weight: bold; background: #eee; }
+        .day { padding: 10px 5px; background: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; min-height: 40px; }
         .shift-tag { font-size: 10px; display: block; margin-top: 5px; color: #d93025; font-weight: bold; }
         .controls { margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
-        input[type="number"] { width: 60px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; }
+        input[type="number"] { width: 50px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
@@ -32,18 +30,16 @@
     
     <div id="login-section">
         <p>തുടരാൻ ലോഗിൻ ചെയ്യുക</p>
-        <button class="btn btn-google" onclick="login()">Google വഴി ലോഗിൻ ചെയ്യുക</button>
+        <button class="btn btn-google" id="login-btn" onclick="login()">Google വഴി ലോഗിൻ ചെയ്യുക</button>
     </div>
 
     <div id="app-section">
         <p id="user-info"></p>
         <h3 id="current-month"></h3>
-        
         <div class="calendar" id="calendar"></div>
-
         <div class="controls">
             <h4>ഇന്നത്തെ ഡ്യൂട്ടി</h4>
-            <div style="display: flex; gap: 5px;">
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
                 <button class="btn btn-shift" onclick="markShift('A')">A</button>
                 <button class="btn btn-shift" onclick="markShift('B')">B</button>
                 <button class="btn btn-shift" onclick="markShift('C')">C</button>
@@ -58,15 +54,16 @@
 </div>
 
 <script>
-    // നിങ്ങളുടെ Firebase കോൺഫിഗറേഷൻ ഇവിടെ മാറ്റി നൽകുക
+    // ജെഫിൻ നൽകിയ പുതിയ കോൺഫിഗറേഷൻ
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyDfcrJ8_yDbZP2ZpfssTzRn8DgT_CaFAAQ",
+        authDomain: "attendance-tracker-f0f59.firebaseapp.com",
+        projectId: "attendance-tracker-f0f59",
+        storageBucket: "attendance-tracker-f0f59.firebasestorage.app",
+        messagingSenderId: "840461456953",
+        appId: "1:840461456953:web:cbff1d7dca0146b398dfe8",
+        measurementId: "G-SNBRNCSFXD",
+        databaseURL: "https://attendance-tracker-f0f59-default-rtdb.firebaseio.com"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -76,7 +73,6 @@
 
     let currentUser = null;
 
-    // ലോഗിൻ മാറ്റം പരിശോധിക്കുന്നു
     auth.onAuthStateChanged(user => {
         if (user) {
             currentUser = user;
@@ -90,17 +86,59 @@
         }
     });
 
-    // ലോഗിൻ ഫങ്ക്ഷൻ (APK-ൽ വർക്ക് ചെയ്യാൻ Popup രീതി)
     function login() {
-        auth.signInWithPopup(provider).then((result) => {
-            console.log("Login Success");
-        }).catch((error) => {
-            alert("Error: " + error.message);
+        const btn = document.getElementById('login-btn');
+        btn.disabled = true;
+        btn.innerText = "ശ്രമിക്കുന്നു...";
+
+        // APK-യിൽ പ്രശ്നം വരാതിരിക്കാൻ ആദ്യം Popup, പരാജയപ്പെട്ടാൽ Redirect
+        auth.signInWithPopup(provider).catch((error) => {
+            console.log("Redirecting...");
+            auth.signInWithRedirect(provider);
+        }).finally(() => {
+            btn.disabled = false;
+            btn.innerText = "Google വഴി ലോഗിൻ ചെയ്യുക";
         });
     }
 
-    function logout() {
-        auth.signOut();
+    function logout() { auth.signOut(); }
+
+    function loadCalendar() {
+        const calDiv = document.getElementById('calendar');
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        document.getElementById('current-month').innerText = now.toLocaleString('ml-IN', { month: 'long', year: 'numeric' });
+
+        db.ref('users/' + currentUser.uid + '/attendance/' + year + '/' + month).on('value', snapshot => {
+            const data = snapshot.val() || {};
+            calDiv.innerHTML = '';
+            const daysInMonth = new Date(year, month, 0).getDate();
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'day';
+                let info = data[i] ? `<span class="shift-tag">${data[i].shift}${data[i].ot > 0 ? ' +'+data[i].ot : ''}</span>` : '';
+                dayDiv.innerHTML = `<strong>${i}</strong>${info}`;
+                calDiv.appendChild(dayDiv);
+            }
+        });
+    }
+
+    function markShift(type) {
+        if(!currentUser) return;
+        const now = new Date();
+        const day = now.getDate();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const ot = document.getElementById('ot-input').value;
+        db.ref('users/' + currentUser.uid + '/attendance/' + year + '/' + month + '/' + day).set({ shift: type, ot: ot });
+    }
+
+    function saveOT() { markShift('Current'); }
+    function backupToTelegram() { alert("ബാക്കപ്പ് സെറ്റ് ചെയ്തിട്ടില്ല. പിന്നീട് ആഡ് ചെയ്യാം."); }
+</script>
+</body>
+</html>
     }
 
     function loadCalendar() {
